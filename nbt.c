@@ -1,8 +1,9 @@
 #include "nbt.h"
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
+// We do not use memcpy() because we do not know what endian the target machine
+// and raw data used.
 #define cNBT_GetByteLE(curs, offs) (((uint32_t)*((curs) + (offs))) << ((offs) * 8))
 #define cNBT_GetByteBE(curs, offs, size) (((uint32_t)*((curs) + (offs))) << ((size) - (offs) * 8 - 8))
 
@@ -147,15 +148,19 @@ static int64_t cNBT_ParseI64(
 static float cNBT_ParseF32(
   cNBTReader *reader
 ) {
+  float result;
   int32_t tmp = cNBT_ParseI32(reader);
-  return *(float *)(&tmp);
+  memcpy((void *)&result, (void *)&tmp, sizeof(float));
+  return result;
 }
 
 static double cNBT_ParseF64(
   cNBTReader *reader
 ) {
+  double result;
   int64_t tmp = cNBT_ParseI64(reader);
-  return *(double *)(&tmp);
+  memcpy((void *)&result, (void *)&tmp, sizeof(double));
+  return result;
 }
 
 // Read an array.
@@ -372,26 +377,4 @@ cNBT *cNBT_Parse(
 
 const void *cNBT_Write() {
 
-}
-
-int main() {
-  FILE *fd = _wfopen(L".\\benchmark.mcstructure", L"rb");
-  size_t size;
-
-  if (!fd)
-    return 1;
-
-  fseek(fd, 0, SEEK_END);
-  size = ftell(fd);
-  rewind(fd);
-  char *buffer = malloc(size + 1);
-  fread(buffer, sizeof(char), size, fd);
-  //buffer[size] = 0;
-  fclose(fd);
-
-  cNBT *s = cNBT_Parse((void *)buffer, size, 0);
-
-  printf("%s", s->child->next->next->child->key);
-
-  while(1);
 }
