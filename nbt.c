@@ -16,7 +16,7 @@ typedef struct {
 } cNBTReader;
 
 //-----------------------------------------------------------------------------
-// [SECTION] Memory management functions.
+// [SECTION] MEMORY MANAGEMENT
 //-----------------------------------------------------------------------------
 
 #ifndef cNBT_DISABLE_DEFAULT_ALLOCATORS
@@ -29,7 +29,7 @@ static void cNBT_FreeWrapper(void *ptr, void *userData) { (void)userData; (void)
 
 static cNBTMemAllocFn gMemAllocFn = cNBT_MallocWrapper;
 static cNBTMemFreeFn gMemFreeFn = cNBT_FreeWrapper;
-static void *gMemUserData = NBT_NULLPTR;
+static void *gMemUserData = cNBT_NULLPTR;
 
 void cNBT_GetAllocators(
   cNBTMemAllocFn *allocFn,
@@ -52,7 +52,7 @@ void cNBT_SetAllocators(
 }
 
 //-----------------------------------------------------------------------------
-// [SECTION] NBT PARSER.
+// [SECTION] NBT PARSER
 //-----------------------------------------------------------------------------
 
 // Declaration of the dispatcher function.
@@ -207,10 +207,10 @@ static uint8_t cNBT_ParseLst(
   uint8_t type = cNBT_ParseI08(reader);
   int32_t length = cNBT_ParseI32(reader);
 
-  item->prev = item->next = NBT_NULLPTR;
+  item->prev = item->next = cNBT_NULLPTR;
 
   while (length > 0) {
-    item->key = NBT_NULLPTR;
+    item->key = cNBT_NULLPTR;
 
     cNBT_ParseX(reader, item, type);
 
@@ -220,7 +220,7 @@ static uint8_t cNBT_ParseLst(
       cNBT *next = gMemAllocFn(sizeof(cNBT), gMemUserData);
       item->next = next;
       next->prev = item;
-      next->next = NBT_NULLPTR;
+      next->next = cNBT_NULLPTR;
       item = next;
     }
   }
@@ -239,7 +239,7 @@ static cNBT *cNBT_ParseObj(
   uint8_t type = cNBT_ParseI08(reader);
   char *key;
 
-  item->next = item->prev = NBT_NULLPTR;
+  item->next = item->prev = cNBT_NULLPTR;
 
   while (type) {
     // Parse the key of the element.
@@ -254,7 +254,7 @@ static cNBT *cNBT_ParseObj(
       cNBT *next = gMemAllocFn(sizeof(cNBT), gMemUserData);
       item->next = next;
       next->prev = item;
-      next->next = NBT_NULLPTR;
+      next->next = cNBT_NULLPTR;
       item = next;
     }
   }
@@ -268,62 +268,214 @@ static void cNBT_ParseX(
   cNBT *item,
   uint8_t type
 ) {
-  item->listElementType = NBT_END;
+  item->listElementType = cNBT_END;
   item->type = type;
-  item->child = NBT_NULLPTR;
+  item->child = cNBT_NULLPTR;
   memset((void *)&item->value, 0, sizeof(cNBTPayload));
 
   switch (type) {
     // Basic types.
-    case NBT_I08:
+    case cNBT_I08:
       item->value.valueI08 = cNBT_ParseI08(reader);
       break;
-    case NBT_I16:
+    case cNBT_I16:
       item->value.valueI16 = cNBT_ParseI16(reader);
       break;
-    case NBT_I32:
+    case cNBT_I32:
       item->value.valueI32 = cNBT_ParseI32(reader);
       break;
-    case NBT_I64:
+    case cNBT_I64:
       item->value.valueI64 = cNBT_ParseI64(reader);
       break;
-    case NBT_F32:
+    case cNBT_F32:
       item->value.valueF32 = cNBT_ParseF32(reader);
       break;
-    case NBT_F64:
+    case cNBT_F64:
       item->value.valueF64 = cNBT_ParseF64(reader);
       break;
 
     // Array of 8-bit integers.
-    case NBT_A08:
+    case cNBT_A08:
       item->value.lengthArray = cNBT_ParseArr(reader, &item->value.valueArray, sizeof(int8_t));
       break;
 
     // String.
-    case NBT_STR:
+    case cNBT_STR:
       item->value.lengthString = cNBT_ParseStr(reader, &item->value.valueString);
       break;
 
     // List.
-    case NBT_LST:
+    case cNBT_LST:
       item->listElementType = cNBT_ParseLst(reader, &item->child);
       break;
 
     // Object.
-    case NBT_OBJ:
+    case cNBT_OBJ:
       item->child = cNBT_ParseObj(reader);
       break;
 
     // Array of 32-bit integers.
-    case NBT_A32:
+    case cNBT_A32:
       item->value.lengthArray = cNBT_ParseArr(reader, &item->value.valueArray, sizeof(int32_t));
       break;
 
     // Array of 64-bit integers.
-    case NBT_A64:
+    case cNBT_A64:
       item->value.lengthArray = cNBT_ParseArr(reader, &item->value.valueArray, sizeof(int64_t));
       break;
   }
+}
+
+//-----------------------------------------------------------------------------
+// [SECTION] VALUE OPERATIONS
+//-----------------------------------------------------------------------------
+
+uint8_t cNBT_IsType(
+  cNBT *nbt,
+  uint8_t type
+) {
+  if (!nbt)
+    // Invalid object.
+    return 0;
+  if (type > cNBT_A64)
+    // Invalid type byte.
+    return 0;
+  if (nbt->type != type)
+    return 0;
+  return 1;
+}
+
+cNBT *cNBT_GetNodeByKey(
+  cNBT *nbt,
+  const char *key
+) {
+  if (!nbt || !key || nbt->type != cNBT_OBJ)
+    return cNBT_NULLPTR;
+  
+  cNBT *item;
+  cNBT_ForEach(nbt, item) {
+    if (item->key && !strcmp(key, item->key))
+      return item;
+  }
+
+  return cNBT_NULLPTR;
+}
+
+cNBT *cNBT_GetNodeByKeyType(
+  cNBT *nbt,
+  const char *key,
+  uint8_t type
+) {
+  if (!nbt || !key || nbt->type != cNBT_OBJ)
+    return cNBT_NULLPTR;
+
+  cNBT *item;
+  cNBT_ForEach(nbt, item) {
+    if (item->key && !strcmp(key, item->key) && item->type == type)
+      return item;
+  }
+
+  return cNBT_NULLPTR;
+}
+
+uint8_t cNBT_GetNodeType(
+  cNBT *nbt
+) {
+  if (!nbt)
+    return cNBT_END;
+  return nbt->type;
+}
+
+const char *cNBT_GetNodeKey(
+  cNBT *nbt
+) {
+  if (!nbt)
+    return cNBT_NULLPTR;
+  return nbt->key;
+}
+
+uint16_t cNBT_GetValueStringLength(
+  cNBT *nbt
+) {
+  if (!nbt || nbt->type != cNBT_STR || !nbt->value.valueString)
+    return 0;
+  return nbt->value.lengthString;
+}
+
+const char *cNBT_GetValueString(
+  cNBT *nbt
+) {
+  if (!nbt || nbt->type != cNBT_STR  || !nbt->value.valueString)
+    return cNBT_NULLPTR;
+  return nbt->value.valueString;
+}
+
+cNBT *cNBT_CreateNode(
+  uint8_t type
+) {
+  if (type > cNBT_A64)
+    return cNBT_NULLPTR;
+
+  cNBT *result = gMemAllocFn(sizeof(cNBT), gMemUserData);
+  memset((void *)result, 0, sizeof(cNBT));
+
+  result->type = type;
+
+  return result;
+}
+
+cNBT *cNBT_AddNode(
+  cNBT *nbt,
+  cNBT *item,
+  const char *key
+) {
+  if (!nbt || !item)
+    return cNBT_NULLPTR;
+  if (nbt->type != cNBT_LST && nbt->type != cNBT_OBJ)
+    return cNBT_NULLPTR;
+
+  if (nbt->type == cNBT_OBJ && cNBT_GetNodeByKey(nbt, key))
+    return cNBT_NULLPTR;
+  if (nbt->type == cNBT_LST && item->type != nbt->listElementType)
+    return cNBT_NULLPTR;
+
+  if (item->key || item->next || item->prev)
+    // We don't know where the key from, so we just return.
+    return cNBT_NULLPTR;
+
+  // Copy the key.
+  size_t length = strlen(key);
+  item->key = gMemAllocFn(length + 1, gMemUserData);
+  memcpy((void *)item->key, key, length);
+  item->key[length] = '\0';
+
+  // Set as a child of given object.
+  if (!nbt->child) {
+    nbt->child = item;
+    return nbt;
+  }
+
+  cNBT *node;
+  cNBT_ForEach(nbt, node) {
+    if (!node->next) {
+      node->next = item;
+
+      item->next = cNBT_NULLPTR;
+      item->prev = node;
+
+      break;
+    }
+  }
+
+  return nbt;
+}
+
+cNBT *cNBT_SetValue(
+  cNBT *nbt,
+  const void *data,
+  size_t size
+) {
+
 }
 
 //-----------------------------------------------------------------------------
@@ -338,12 +490,12 @@ void cNBT_Delete(
     next = item->next;
     child = item->child;
     if (
-      item->type == NBT_A08
-      || item->type == NBT_A32
-      || item->type == NBT_A64
+      item->type == cNBT_A08
+      || item->type == cNBT_A32
+      || item->type == cNBT_A64
     )
       gMemFreeFn(item->value.valueArray, gMemUserData);
-    if (item->type == NBT_STR)
+    if (item->type == cNBT_STR)
       gMemFreeFn(item->value.valueString, gMemUserData);
     if (item->key)
       gMemFreeFn(item->key, gMemUserData);
@@ -362,7 +514,7 @@ cNBT *cNBT_Parse(
   uint8_t bigEndian
 ) {
   if (!data)
-    return NBT_NULLPTR;
+    return cNBT_NULLPTR;
 
   cNBTReader reader = {
     .bigEndian = bigEndian,

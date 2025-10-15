@@ -7,32 +7,32 @@
 extern "C" {
 #endif
 
-#ifndef NBT_API
-#define NBT_API __stdcall
+#ifndef cNBT_API
+#define cNBT_API __stdcall
 #endif
 
-#ifndef NBT_ATTR
-#define NBT_ATTR
+#ifndef cNBT_ATTR
+#define cNBT_ATTR
 #endif
 
-#define NBT_END 0x00
-#define NBT_I08 0x01
-#define NBT_I16 0x02
-#define NBT_I32 0x03
-#define NBT_I64 0x04
-#define NBT_F32 0x05
-#define NBT_F64 0x06
-#define NBT_A08 0x07
-#define NBT_STR 0x08
-#define NBT_LST 0x09
-#define NBT_OBJ 0x0A
-#define NBT_A32 0x0B
-#define NBT_A64 0x0C
+#define cNBT_END 0x00
+#define cNBT_I08 0x01
+#define cNBT_I16 0x02
+#define cNBT_I32 0x03
+#define cNBT_I64 0x04
+#define cNBT_F32 0x05
+#define cNBT_F64 0x06
+#define cNBT_A08 0x07
+#define cNBT_STR 0x08
+#define cNBT_LST 0x09
+#define cNBT_OBJ 0x0A
+#define cNBT_A32 0x0B
+#define cNBT_A64 0x0C
 
 #ifdef NULL
-#define NBT_NULLPTR NULL
+#define cNBT_NULLPTR NULL
 #else
-#define NBT_NULLPTR ((void *)0)
+#define cNBT_NULLPTR ((void *)0)
 #endif
 
 typedef union {
@@ -82,33 +82,81 @@ typedef struct cNBT_t {
   cNBTPayload value;
 } cNBT;
 
+//-----------------------------------------------------------------------------
+// [SECTION] MEMORY MANAGEMENT
+//-----------------------------------------------------------------------------
+
 typedef void *(__stdcall *cNBTMemAllocFn)(
   size_t, void *);
 typedef void (__stdcall *cNBTMemFreeFn)(
   void *, void *);
 
 // Get current memory allocator functions.
-NBT_ATTR void NBT_API cNBT_GetAllocators(
-  cNBTMemAllocFn *allocFn,
-  cNBTMemFreeFn *freeFn,
-  void **userData);
+cNBT_ATTR void cNBT_API cNBT_GetAllocators(
+  cNBTMemAllocFn *allocFn, cNBTMemFreeFn *freeFn, void **userData);
 
 // Set current memory allocator functions. you can implement your own
 // allocator with this function.
-NBT_ATTR void NBT_API cNBT_SetAllocators(
-  cNBTMemAllocFn allocFn,
-  cNBTMemFreeFn freeFn,
-  void *userData);
+cNBT_ATTR void cNBT_API cNBT_SetAllocators(
+  cNBTMemAllocFn allocFn, cNBTMemFreeFn freeFn, void *userData);
+
+//-----------------------------------------------------------------------------
+// [SECTION] VALUE OPERATIONS
+//-----------------------------------------------------------------------------
+
+// Traverse all items of an object or list.
+#define cNBT_ForEach(object, item) \
+  for(item = (object) ? (object)->child : cNBT_NULLPTR; item; item = item->next)
+
+// Check the type of the given item.
+cNBT_ATTR uint8_t cNBT_API cNBT_IsType(
+  cNBT *nbt, uint8_t type);
+
+// Find items with matching the given key name.
+cNBT_ATTR cNBT *cNBT_API cNBT_GetNodeByKey(
+  cNBT *nbt, const char *key);
+
+// Find items with matching the given key name and the given type.
+cNBT_ATTR cNBT *cNBT_API cNBT_GetNodeByKeyType(
+  cNBT *nbt, const char *key, uint8_t type);
+
+// Get the type of an item.
+cNBT_ATTR uint8_t cNBT_API cNBT_GetNodeType(
+  cNBT *nbt);
+
+// Get the key name of an item.
+cNBT_ATTR const char *cNBT_API cNBT_GetNodeKey(
+  cNBT *nbt);
+
+// Obtain the string length carried by the string node.
+// Avaliable only for string nodes.
+cNBT_ATTR uint16_t cNBT_API cNBT_GetValueStringLength(
+  cNBT *nbt);
+
+// Obtain the pointer to the string carried by the string node.
+// Avaliable only for string nodes.
+cNBT_ATTR const char *cNBT_API cNBT_GetValueString(
+  cNBT *nbt);
+
+// Create an NBT item.
+cNBT_ATTR cNBT *cNBT_API cNBT_CreateNode(
+  uint8_t type);
+
+// Add a node to the object.
+cNBT_ATTR cNBT *cNBT_API cNBT_AddNode(
+  cNBT *nbt, cNBT *item, const char *key);
+
+//-----------------------------------------------------------------------------
+// [SECTION] GENERAL OPERATIONS
+//-----------------------------------------------------------------------------
 
 // Free the whole NBT object recursively. DO NOT access deleted NBT objects.
-NBT_ATTR void NBT_API cNBT_Delete(
+cNBT_ATTR void cNBT_API cNBT_Delete(
   cNBT *nbt);
 
 // Parse a binary NBT data.
-NBT_ATTR cNBT NBT_API *cNBT_Parse(
-  const void *data,
-  size_t size,
-  uint8_t bigEndian);
+cNBT_ATTR cNBT cNBT_API *cNBT_Parse(
+  const void *data, size_t size, uint8_t bigEndian);
 
 #ifdef __cplusplus
 }
