@@ -72,7 +72,6 @@ typedef struct cNBT_t {
   // The name of the item. This will be NBT_NULLPTR if the item is in a list.
   // When the key is empty (length == 0), it's recorded as a pointer points 
   // to "\0".
-  // An independent element won't have a key.
   char *key;
 
   // The type of the payload of this item.
@@ -113,33 +112,33 @@ cNBT_ATTR void cNBT_API cNBT_SetAllocators(
 
 // Check the type of the given item.
 cNBT_ATTR uint8_t cNBT_API cNBT_IsType(
-  cNBT *nbt, uint8_t type);
+  const cNBT *const nbt, uint8_t type);
 
 // Find items with matching the given key name.
 cNBT_ATTR cNBT *cNBT_API cNBT_GetNodeByKey(
-  cNBT *nbt, const char *key);
+  const cNBT *const nbt, const char *key);
 
 // Find items with matching the given key name and the given type.
 cNBT_ATTR cNBT *cNBT_API cNBT_GetNodeByKeyType(
-  cNBT *nbt, const char *key, uint8_t type);
+  const cNBT *const nbt, const char *key, uint8_t type);
 
 // Get the type of an item.
 cNBT_ATTR uint8_t cNBT_API cNBT_GetNodeType(
-  cNBT *nbt);
+  const cNBT *const nbt);
 
 // Get the key name of an item.
 cNBT_ATTR const char *cNBT_API cNBT_GetNodeKey(
-  cNBT *nbt);
+  const cNBT *const nbt);
 
 // Obtain the string length carried by the string node.
 // Avaliable only for string nodes.
 cNBT_ATTR uint16_t cNBT_API cNBT_GetValueStringLength(
-  cNBT *nbt);
+  const cNBT *const nbt);
 
 // Obtain the pointer to the string carried by the string node.
 // Avaliable only for string nodes.
 cNBT_ATTR const char *cNBT_API cNBT_GetValueString(
-  cNBT *nbt);
+  const cNBT *const nbt);
 
 // Create an NBT item.
 cNBT_ATTR cNBT *cNBT_API cNBT_CreateNode(
@@ -155,27 +154,27 @@ cNBT_ATTR cNBT *cNBT_API cNBT_SetValue(
   const void *data,
   size_t length);
 
-cNBT *cNBT_SetValueI08(
+cNBT_ATTR cNBT *cNBT_API cNBT_SetValueI08(
   cNBT *nbt,
   int8_t data);
 
-cNBT *cNBT_SetValueI16(
+cNBT_ATTR cNBT *cNBT_API cNBT_SetValueI16(
   cNBT *nbt,
   int16_t data);
 
-cNBT *cNBT_SetValueI32(
+cNBT_ATTR cNBT *cNBT_API cNBT_SetValueI32(
   cNBT *nbt,
   int32_t data);
 
-cNBT *cNBT_SetValueI64(
+cNBT_ATTR cNBT *cNBT_API cNBT_SetValueI64(
   cNBT *nbt,
   int64_t data);
 
-cNBT *cNBT_SetValueF32(
+cNBT_ATTR cNBT *cNBT_API cNBT_SetValueF32(
   cNBT *nbt,
   float data);
 
-cNBT *cNBT_SetValueF64(
+cNBT_ATTR cNBT *cNBT_API cNBT_SetValueF64(
   cNBT *nbt,
   double data);
 

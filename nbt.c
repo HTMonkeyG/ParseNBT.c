@@ -572,7 +572,7 @@ static void cNBT_WriteX(
 //-----------------------------------------------------------------------------
 
 uint8_t cNBT_IsType(
-  cNBT *nbt,
+  const cNBT *const nbt,
   uint8_t type
 ) {
   if (!nbt)
@@ -590,7 +590,7 @@ uint8_t cNBT_IsType(
 }
 
 cNBT *cNBT_GetNodeByKey(
-  cNBT *nbt,
+  const cNBT *const nbt,
   const char *key
 ) {
   if (!nbt || !key || nbt->type != cNBT_OBJ)
@@ -606,7 +606,7 @@ cNBT *cNBT_GetNodeByKey(
 }
 
 cNBT *cNBT_GetNodeByKeyType(
-  cNBT *nbt,
+  const cNBT *const nbt,
   const char *key,
   uint8_t type
 ) {
@@ -623,7 +623,7 @@ cNBT *cNBT_GetNodeByKeyType(
 }
 
 uint8_t cNBT_GetNodeType(
-  cNBT *nbt
+  const cNBT *const nbt
 ) {
   if (!nbt)
     // Invalid type.
@@ -633,7 +633,7 @@ uint8_t cNBT_GetNodeType(
 }
 
 const char *cNBT_GetNodeKey(
-  cNBT *nbt
+  const cNBT *const nbt
 ) {
   if (!nbt)
     return cNBT_NULLPTR;
@@ -642,7 +642,7 @@ const char *cNBT_GetNodeKey(
 }
 
 uint16_t cNBT_GetValueStringLength(
-  cNBT *nbt
+  const cNBT *const nbt
 ) {
   if (!nbt || nbt->type != cNBT_STR || !nbt->value.valueString)
     return 0;
@@ -651,7 +651,7 @@ uint16_t cNBT_GetValueStringLength(
 }
 
 const char *cNBT_GetValueString(
-  cNBT *nbt
+  const cNBT *const nbt
 ) {
   if (!nbt || nbt->type != cNBT_STR  || !nbt->value.valueString)
     return cNBT_NULLPTR;
