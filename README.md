@@ -1,6 +1,11 @@
 # ParseNBT.c (cNBT)
 An NBT parser and serializer written in C.
 
+## Usage
+Download `nbt.c` and `nbt.h` in the repository, and put the files in your project, then include `nbt.h`.
+
+Call `cNBT_Parse()` to read binary NBT data into `cNBT` objects, and call `cNBT_Write()` to serialize `cNBT` objects to binary data. Don't forget to free the memory and objects with `cNBT_Free()` and `cNBT_Delete()`.
+
 ## Example
 
 ```c
