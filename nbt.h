@@ -147,22 +147,35 @@ cNBT_ATTR cNBT *cNBT_API cNBT_AddNode(
   cNBT *nbt, cNBT *item, const char *key);
 
 // Set the value of a node.
-cNBT *cNBT_SetValue(
+cNBT_ATTR cNBT *cNBT_API cNBT_SetValue(
   cNBT *nbt,
   const void *data,
+  size_t length);
+
+cNBT_ATTR cNBT *cNBT_API cNBT_SetValueString(
+  cNBT *nbt,
+  const char *string,
   size_t length);
 
 //-----------------------------------------------------------------------------
 // [SECTION] GENERAL OPERATIONS
 //-----------------------------------------------------------------------------
 
+// Free a created pointer by cNBT, like the return value of cNBT_Write().
+cNBT_ATTR void cNBT_API cNBT_Free(
+  const void *p);
+
 // Free the whole NBT object recursively. DO NOT access deleted NBT objects.
 cNBT_ATTR void cNBT_API cNBT_Delete(
   cNBT *nbt);
 
 // Parse a binary NBT data.
-cNBT_ATTR cNBT cNBT_API *cNBT_Parse(
+cNBT_ATTR cNBT *cNBT_API cNBT_Parse(
   const void *data, size_t size, uint8_t bigEndian);
+
+// Serialize a NBT object to binary data.
+cNBT_ATTR const void *cNBT_API cNBT_Write(
+  cNBT *nbt, size_t initialCapacity, uint8_t bigEndian, size_t *length);
 
 #ifdef __cplusplus
 }
