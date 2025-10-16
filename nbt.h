@@ -61,15 +61,18 @@ struct cNBT_t;
 typedef struct cNBT_t {
   // The chain of the items in the list/object.
   struct cNBT_t *next;
+  // For the first element of the list, this pointer points to the last element
+  // of the list. For a list only have 1 element, it points to itself.
   struct cNBT_t *prev;
 
-  // A list or object item will have a child pointer pointing to a chain of
-  // the items in the list/object.
+  // A list or object item will have a child pointer pointing to another chain
+  // of the items in the list/object.
   struct cNBT_t *child;
 
   // The name of the item. This will be NBT_NULLPTR if the item is in a list.
   // When the key is empty (length == 0), it's recorded as a pointer points 
   // to "\0".
+  // An independent element won't have a key.
   char *key;
 
   // The type of the payload of this item.
@@ -151,6 +154,30 @@ cNBT_ATTR cNBT *cNBT_API cNBT_SetValue(
   cNBT *nbt,
   const void *data,
   size_t length);
+
+cNBT *cNBT_SetValueI08(
+  cNBT *nbt,
+  int8_t data);
+
+cNBT *cNBT_SetValueI16(
+  cNBT *nbt,
+  int16_t data);
+
+cNBT *cNBT_SetValueI32(
+  cNBT *nbt,
+  int32_t data);
+
+cNBT *cNBT_SetValueI64(
+  cNBT *nbt,
+  int64_t data);
+
+cNBT *cNBT_SetValueF32(
+  cNBT *nbt,
+  float data);
+
+cNBT *cNBT_SetValueF64(
+  cNBT *nbt,
+  double data);
 
 cNBT_ATTR cNBT *cNBT_API cNBT_SetValueString(
   cNBT *nbt,

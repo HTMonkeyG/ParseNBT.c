@@ -39,6 +39,21 @@ void cNBT_SetAllocators(
   gMemUserData = userData;
 }
 
+char *cNBT_StrDup(
+  const char *string
+) {
+  char *result;
+  size_t length = strlen(string);
+
+  result = gMemAllocFn(length + 1, gMemUserData);
+  if (length)
+    memcpy((void *)result, string, length);
+
+  result[length] = '\0';
+
+  return result;
+}
+
 //-----------------------------------------------------------------------------
 // [SECTION] NBT READER
 //-----------------------------------------------------------------------------
@@ -680,27 +695,26 @@ cNBT *cNBT_AddNode(
     // Not compatible types.
     return cNBT_NULLPTR;
 
-  if (item->key || item->next || item->prev)
+  if (item->next || item->prev)
     // Not independent item.
     // We don't know where the item from, so we just return.
     return cNBT_NULLPTR;
 
+  // Free the existing key.
+  if (item->key)
+    gMemFreeFn(item->key, gMemUserData);
+
   // Copy the key.
-  if (nbt->type != cNBT_LST) {
-    size_t length = strlen(key);
-
-    item->key = gMemAllocFn(length + 1, gMemUserData);
-    if (length)
-      memcpy((void *)item->key, key, length);
-
-    item->key[length] = '\0';
-  } else {
+  if (nbt->type != cNBT_LST)
+    item->key = cNBT_StrDup(key);
+  else
     item->key = cNBT_NULLPTR;
-  }
 
   if (!nbt->child) {
     // Set as a child of given object.
     nbt->child = item;
+    item->prev = item;
+    item->next = cNBT_NULLPTR;
 
     return nbt;
   }
@@ -784,6 +798,78 @@ cNBT *cNBT_SetValue(
   return nbt;
 }
 
+cNBT *cNBT_SetValueI08(
+  cNBT *nbt,
+  int8_t data
+) {
+  if (!nbt || nbt->type != cNBT_I08)
+    return cNBT_NULLPTR;
+
+  nbt->value.valueI08 = data;
+
+  return nbt;
+}
+
+cNBT *cNBT_SetValueI16(
+  cNBT *nbt,
+  int16_t data
+) {
+  if (!nbt || nbt->type != cNBT_I16)
+    return cNBT_NULLPTR;
+
+  nbt->value.valueI16 = data;
+
+  return nbt;
+}
+
+cNBT *cNBT_SetValueI32(
+  cNBT *nbt,
+  int32_t data
+) {
+  if (!nbt || nbt->type != cNBT_I32)
+    return cNBT_NULLPTR;
+
+  nbt->value.valueI08 = data;
+
+  return nbt;
+}
+
+cNBT *cNBT_SetValueI64(
+  cNBT *nbt,
+  int64_t data
+) {
+  if (!nbt || nbt->type != cNBT_I64)
+    return cNBT_NULLPTR;
+
+  nbt->value.valueI08 = data;
+
+  return nbt;
+}
+
+cNBT *cNBT_SetValueF32(
+  cNBT *nbt,
+  float data
+) {
+  if (!nbt || nbt->type != cNBT_F32)
+    return cNBT_NULLPTR;
+
+  nbt->value.valueF32 = data;
+
+  return nbt;
+}
+
+cNBT *cNBT_SetValueF64(
+  cNBT *nbt,
+  double data
+) {
+  if (!nbt || nbt->type != cNBT_F64)
+    return cNBT_NULLPTR;
+
+  nbt->value.valueF64 = data;
+
+  return nbt;
+}
+
 cNBT *cNBT_SetValueString(
   cNBT *nbt,
   const char *string,
@@ -793,6 +879,39 @@ cNBT *cNBT_SetValueString(
     return cNBT_NULLPTR;
 
   return cNBT_SetValue(nbt, (const void *)string, length);
+}
+
+cNBT *cNBT_RemoveNode(
+  cNBT *nbt,
+  cNBT *item
+) {
+  if (!nbt || !item)
+    // Invalid parameters.
+    return cNBT_NULLPTR;
+
+  if (item != nbt->child && !item->prev)
+    // The item is the first child of other objects.
+    return cNBT_NULLPTR;
+
+  if (item != nbt->child)
+    // Not the first element.
+    item->prev->next = item->next;
+
+  if (item->next)
+    // Not the last element.
+    item->next->prev = item->prev;
+
+  if (item == nbt->child)
+    // The first element of the list.
+    nbt->child = item->next;
+  else if (!item->next)
+    // The last element of the list.
+    nbt->child->prev = item->prev;
+
+  // Detach the node from the list.
+  item->next = item->prev = cNBT_NULLPTR;
+
+  return item;
 }
 
 //-----------------------------------------------------------------------------
