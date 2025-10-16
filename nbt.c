@@ -1,6 +1,7 @@
 #include "nbt.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 // We do not use memcpy() because we do not know what endian the target machine
 // and raw data used.
@@ -164,6 +165,7 @@ static double cNBT_ParseF64(
 }
 
 // Read an array.
+// FIXME: Incorrect value endians.
 static int32_t cNBT_ParseArr(
   cNBTReader *reader,
   void **result,
@@ -188,7 +190,8 @@ static uint16_t cNBT_ParseStr(
   const uint8_t *cursor = ((uint8_t *)reader->data + reader->offset);
   char *valueString = gMemAllocFn(length + 1, gMemUserData);
 
-  memcpy((void *)valueString, (void *)cursor, length);
+  if (length)
+    memcpy((void *)valueString, (void *)cursor, length);
   valueString[length] = '\0';
   reader->offset += length;
 
@@ -207,6 +210,7 @@ static uint8_t cNBT_ParseLst(
   uint8_t type = cNBT_ParseI08(reader);
   int32_t length = cNBT_ParseI32(reader);
 
+  memset((void *)item, 0, sizeof(cNBT));
   item->prev = item->next = cNBT_NULLPTR;
 
   while (length > 0) {
@@ -218,6 +222,7 @@ static uint8_t cNBT_ParseLst(
     if (length) {
       // Create next node.
       cNBT *next = gMemAllocFn(sizeof(cNBT), gMemUserData);
+      memset((void *)next, 0, sizeof(cNBT));
       item->next = next;
       next->prev = item;
       next->next = cNBT_NULLPTR;
@@ -351,7 +356,7 @@ cNBT *cNBT_GetNodeByKey(
 ) {
   if (!nbt || !key || nbt->type != cNBT_OBJ)
     return cNBT_NULLPTR;
-  
+
   cNBT *item;
   cNBT_ForEach(nbt, item) {
     if (item->key && !strcmp(key, item->key))
@@ -444,10 +449,15 @@ cNBT *cNBT_AddNode(
     return cNBT_NULLPTR;
 
   // Copy the key.
-  size_t length = strlen(key);
-  item->key = gMemAllocFn(length + 1, gMemUserData);
-  memcpy((void *)item->key, key, length);
-  item->key[length] = '\0';
+  if (nbt->type != cNBT_LST) {
+    size_t length = strlen(key);
+    item->key = gMemAllocFn(length + 1, gMemUserData);
+    if (length)
+      memcpy((void *)item->key, key, length);
+    item->key[length] = '\0';
+  } else {
+    item->key = cNBT_NULLPTR;
+  }
 
   // Set as a child of given object.
   if (!nbt->child) {
@@ -473,9 +483,64 @@ cNBT *cNBT_AddNode(
 cNBT *cNBT_SetValue(
   cNBT *nbt,
   const void *data,
-  size_t size
+  size_t length
 ) {
+  if (!nbt || !data)
+    return cNBT_NULLPTR;
 
+  switch (nbt->type) {
+    // Basic types. The length will be ignored.
+    case cNBT_I08:
+      memcpy(&nbt->value.valueI08, data, sizeof(int8_t));
+      break;
+    case cNBT_I16:
+      memcpy(&nbt->value.valueI16, data, sizeof(int16_t));
+      break;
+    case cNBT_I32:
+      memcpy(&nbt->value.valueI32, data, sizeof(int32_t));
+      break;
+    case cNBT_I64:
+      memcpy(&nbt->value.valueI64, data, sizeof(int64_t));
+      break;
+    case cNBT_F32:
+      memcpy(&nbt->value.valueF32, data, sizeof(float));
+      break;
+    case cNBT_F64:
+      memcpy(&nbt->value.valueF64, data, sizeof(double));
+      break;
+
+    case cNBT_A08:
+      if (nbt->value.valueArray)
+        gMemFreeFn(nbt->value.valueArray, gMemUserData);
+      nbt->value.lengthArray = length;
+      if (length) {
+        nbt->value.valueArray = gMemAllocFn(length * sizeof(int8_t), gMemUserData);
+        memcpy(nbt->value.valueArray, data, length * sizeof(int8_t));
+      } else {
+        nbt->value.valueArray = cNBT_NULLPTR;
+      }
+      break;
+
+    case cNBT_STR:
+      if (nbt->value.valueString)
+        gMemFreeFn(nbt->value.valueString, gMemUserData);
+      if (!length)
+        length = strlen((const char *)data);
+      nbt->value.lengthString = length;
+      if (length) {
+        nbt->value.valueString = gMemAllocFn((length + 1) * sizeof(char), gMemUserData);
+        memcpy(nbt->value.valueString, data, length * sizeof(char));
+        nbt->value.valueString[length] = '\0';
+      } else {
+        nbt->value.valueString = cNBT_NULLPTR;
+      }
+      break;
+
+    default:
+      return cNBT_NULLPTR;
+  }
+
+  return nbt;
 }
 
 //-----------------------------------------------------------------------------
@@ -524,7 +589,16 @@ cNBT *cNBT_Parse(
     .errorFlag = 0
   };
 
-  return cNBT_ParseObj(&reader);
+  cNBT *result = gMemAllocFn(sizeof(cNBT), gMemUserData);
+  uint8_t type = cNBT_ParseI08(&reader);
+
+  result->next = result->prev = cNBT_NULLPTR;
+
+  // Parse the key of the element.
+  cNBT_ParseStr(&reader, &result->key);
+  cNBT_ParseX(&reader, result, type);
+
+  return result;
 }
 
 const void *cNBT_Write() {

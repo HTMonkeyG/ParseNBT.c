@@ -146,6 +146,12 @@ cNBT_ATTR cNBT *cNBT_API cNBT_CreateNode(
 cNBT_ATTR cNBT *cNBT_API cNBT_AddNode(
   cNBT *nbt, cNBT *item, const char *key);
 
+// Set the value of a node.
+cNBT *cNBT_SetValue(
+  cNBT *nbt,
+  const void *data,
+  size_t length);
+
 //-----------------------------------------------------------------------------
 // [SECTION] GENERAL OPERATIONS
 //-----------------------------------------------------------------------------
