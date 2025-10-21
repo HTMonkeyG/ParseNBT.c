@@ -1,4 +1,5 @@
 #include "nbt.h"
+#include "nbtconfig.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -11,7 +12,7 @@
 static void *cNBT_MallocWrapper(size_t size, void *userData) { (void)userData; return malloc(size); }
 static void cNBT_FreeWrapper(void *ptr, void *userData) { (void)userData; free(ptr); }
 #else
-static void *cNBT_MallocWrapper(size_t size, void *userData) { (void)userData; (void)size; return NBT_NULLPTR; }
+static void *cNBT_MallocWrapper(size_t size, void *userData) { (void)userData; (void)size; return cNBT_NULLPTR; }
 static void cNBT_FreeWrapper(void *ptr, void *userData) { (void)userData; (void)ptr; }
 #endif
 

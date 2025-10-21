@@ -2,6 +2,7 @@
 #define __NBT_H__
 
 #include <stdint.h>
+#include "nbtconfig.h"
 
 #ifdef __cplusplus
 extern "C" {
