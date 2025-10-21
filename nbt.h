@@ -144,52 +144,59 @@ cNBT_ATTR const char *cNBT_API cNBT_GetValueString(
 cNBT_ATTR cNBT *cNBT_API cNBT_CreateNode(
   uint8_t type);
 
-// Add a node to the object.
+// Add a node to the object. The node must be an independent node.
 cNBT_ATTR cNBT *cNBT_API cNBT_AddNode(
   cNBT *nbt, cNBT *item, const char *key);
 
-// Set the value of a node.
-cNBT_ATTR cNBT *cNBT_API cNBT_SetValue(
-  cNBT *nbt,
-  const void *data,
-  size_t length);
-
+// Set the value of a node. The node's type must match the function, or the
+// function fails.
 cNBT_ATTR cNBT *cNBT_API cNBT_SetValueI08(
   cNBT *nbt,
   int8_t data);
-
 cNBT_ATTR cNBT *cNBT_API cNBT_SetValueI16(
   cNBT *nbt,
   int16_t data);
-
 cNBT_ATTR cNBT *cNBT_API cNBT_SetValueI32(
   cNBT *nbt,
   int32_t data);
-
 cNBT_ATTR cNBT *cNBT_API cNBT_SetValueI64(
   cNBT *nbt,
   int64_t data);
-
 cNBT_ATTR cNBT *cNBT_API cNBT_SetValueF32(
   cNBT *nbt,
   float data);
-
 cNBT_ATTR cNBT *cNBT_API cNBT_SetValueF64(
   cNBT *nbt,
   double data);
 
+// Set the value of a string node. The function will calculate the length of
+// the given string automatically when `maxLen` == 0.
+//
+// The function will not access characters greater than `maxLen`.
+// 
+// The function fails when the length of the given string is bigger than 65535
+// and the `maxLen` is not specified.
 cNBT_ATTR cNBT *cNBT_API cNBT_SetValueString(
   cNBT *nbt,
   const char *string,
-  size_t length);
+  uint16_t maxLen);
+
+// Set the value of an array node. The function fails when `length` < 0.
+cNBT_ATTR cNBT *cNBT_API cNBT_SetValueArray(
+  cNBT *nbt,
+  const void *data,
+  int32_t length);
 
 //-----------------------------------------------------------------------------
 // [SECTION] GENERAL OPERATIONS
 //-----------------------------------------------------------------------------
 
+cNBT_ATTR void *cNBT_API cNBT_Alloc(
+  size_t size);
+
 // Free a created pointer by cNBT, like the return value of cNBT_Write().
 cNBT_ATTR void cNBT_API cNBT_Free(
-  const void *p);
+  const void *ptr);
 
 // Free the whole NBT object recursively. DO NOT access deleted NBT objects.
 cNBT_ATTR void cNBT_API cNBT_Delete(

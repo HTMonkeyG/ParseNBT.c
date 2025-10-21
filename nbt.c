@@ -19,6 +19,18 @@ static cNBTMemAllocFn gMemAllocFn = cNBT_MallocWrapper;
 static cNBTMemFreeFn gMemFreeFn = cNBT_FreeWrapper;
 static void *gMemUserData = cNBT_NULLPTR;
 
+void *cNBT_Alloc(
+  size_t size
+) {
+  return gMemAllocFn(size, gMemUserData);
+}
+
+void cNBT_Free(
+  const void *ptr
+) {
+  gMemFreeFn(ptr, gMemUserData);
+}
+
 void cNBT_GetAllocators(
   cNBTMemAllocFn *allocFn,
   cNBTMemFreeFn *freeFn,
@@ -39,20 +51,30 @@ void cNBT_SetAllocators(
   gMemUserData = userData;
 }
 
-char *cNBT_StrDup(
-  const char *string
+static inline char *cNBT_StrNDup(
+  const char *string,
+  size_t maxLen,
+  size_t *copiedLen
 ) {
   char *result;
   size_t length = strlen(string);
 
-  result = gMemAllocFn(length + 1, gMemUserData);
+  if (maxLen && length > maxLen)
+    length = maxLen;
+
+  result = cNBT_Alloc(length + 1);
   if (length)
     memcpy((void *)result, string, length);
 
   result[length] = '\0';
 
+  if (copiedLen)
+    *copiedLen = length;
+
   return result;
 }
+
+#define cNBT_StrDup(string) cNBT_StrNDup(string, 0, cNBT_NULLPTR)
 
 //-----------------------------------------------------------------------------
 // [SECTION] NBT READER
@@ -62,6 +84,8 @@ char *cNBT_StrDup(
 // and raw data used.
 #define cNBT_GetByteLE(curs, offs) (((uint32_t)*((curs) + (offs))) << ((offs) * 8))
 #define cNBT_GetByteBE(curs, offs, size) (((uint32_t)*((curs) + (offs))) << ((size) - (offs) * 8 - 8))
+
+#define cNBT_GetCursor(obj) (((uint8_t *)(obj)->data + (obj)->offset))
 
 typedef struct {
   const void *data;
@@ -80,7 +104,7 @@ static void cNBT_ParseX(
 static int8_t cNBT_ParseI08(
   cNBTReader *reader
 ) {
-  const uint8_t *cursor = ((uint8_t *)reader->data + reader->offset);
+  const uint8_t *cursor = cNBT_GetCursor(reader);
   reader->offset += 1;
   return (int8_t)cNBT_GetByteLE(cursor, 0);
 }
@@ -88,7 +112,7 @@ static int8_t cNBT_ParseI08(
 static int16_t cNBT_ParseI16(
   cNBTReader *reader
 ) {
-  const uint8_t *cursor = ((uint8_t *)reader->data + reader->offset);
+  const uint8_t *cursor = cNBT_GetCursor(reader);
   uint16_t result;
 
   reader->offset += 2;
@@ -107,7 +131,7 @@ static int16_t cNBT_ParseI16(
 static int32_t cNBT_ParseI32(
   cNBTReader *reader
 ) {
-  const uint8_t *cursor = ((uint8_t *)reader->data + reader->offset);
+  const uint8_t *cursor = cNBT_GetCursor(reader);
   uint32_t result;
 
   reader->offset += 4;
@@ -130,7 +154,7 @@ static int32_t cNBT_ParseI32(
 static int64_t cNBT_ParseI64(
   cNBTReader *reader
 ) {
-  const uint8_t *cursor = ((uint8_t *)reader->data + reader->offset);
+  const uint8_t *cursor = cNBT_GetCursor(reader);
   uint32_t resultHi, resultLo;
   uint64_t result;
 
@@ -187,8 +211,8 @@ static int32_t cNBT_ParseArr(
   size_t perElement
 ) {
   int32_t length = cNBT_ParseI32(reader);
-  const uint8_t *cursor = ((uint8_t *)reader->data + reader->offset);
-  void *valueArr = gMemAllocFn(length * perElement, gMemUserData);
+  const uint8_t *cursor = cNBT_GetCursor(reader);
+  void *valueArr = cNBT_Alloc(length * perElement);
 
   memcpy(valueArr, (void *)cursor, length * perElement);
   *result = valueArr;
@@ -202,8 +226,8 @@ static uint16_t cNBT_ParseStr(
   char **result
 ) {
   uint16_t length = (uint16_t)cNBT_ParseI16(reader);
-  const uint8_t *cursor = ((uint8_t *)reader->data + reader->offset);
-  char *valueString = gMemAllocFn(length + 1, gMemUserData);
+  const uint8_t *cursor = cNBT_GetCursor(reader);
+  char *valueString = cNBT_Alloc(length + 1);
 
   if (length)
     memcpy((void *)valueString, (void *)cursor, length);
@@ -220,7 +244,7 @@ static uint8_t cNBT_ParseLst(
   cNBTReader *reader,
   cNBT **result
 ) {
-  cNBT *first = gMemAllocFn(sizeof(cNBT), gMemUserData)
+  cNBT *first = cNBT_Alloc(sizeof(cNBT))
     , *item = first;
   uint8_t type = cNBT_ParseI08(reader);
   int32_t length = cNBT_ParseI32(reader);
@@ -236,7 +260,7 @@ static uint8_t cNBT_ParseLst(
     length--;
     if (length) {
       // Create next node.
-      cNBT *next = gMemAllocFn(sizeof(cNBT), gMemUserData);
+      cNBT *next = cNBT_Alloc(sizeof(cNBT));
       memset((void *)next, 0, sizeof(cNBT));
       item->next = next;
       next->prev = item;
@@ -254,7 +278,7 @@ static uint8_t cNBT_ParseLst(
 static cNBT *cNBT_ParseObj(
   cNBTReader *reader
 ) {
-  cNBT *result = gMemAllocFn(sizeof(cNBT), gMemUserData)
+  cNBT *result = cNBT_Alloc(sizeof(cNBT))
     , *item = result;
   uint8_t type = cNBT_ParseI08(reader);
   char *key;
@@ -271,7 +295,7 @@ static cNBT *cNBT_ParseObj(
     type = cNBT_ParseI08(reader);
     if (type) {
       // Create next node.
-      cNBT *next = gMemAllocFn(sizeof(cNBT), gMemUserData);
+      cNBT *next = cNBT_Alloc(sizeof(cNBT));
       item->next = next;
       next->prev = item;
       next->next = cNBT_NULLPTR;
@@ -361,29 +385,32 @@ typedef struct {
   uint32_t errorFlag;
 } cNBTWriter;
 
+// Dispatcher function.
 static void cNBT_WriteX(
   cNBTWriter *writer, cNBT *item);
 
-// Basic type writers.
+// Expand the capacity of the writer.
 static inline void cNBT_Expand(
   cNBTWriter *writer,
   size_t length
 ) {
   if (length && writer->offset + length <= writer->capacity)
     return;
-  void *newData = gMemAllocFn(writer->capacity * 2, gMemUserData);
+  void *newData = cNBT_Alloc(writer->capacity * 2);
   memcpy(newData, writer->data, writer->capacity);
   writer->capacity *= 2;
-  gMemFreeFn(writer->data, gMemUserData);
+  cNBT_Free(writer->data);
   writer->data = newData;
 }
+
+// Basic type writers.
 
 static void cNBT_WriteI08(
   cNBTWriter *writer,
   uint8_t data
 ) {
   cNBT_Expand(writer, sizeof(int8_t));
-  uint8_t *cursor = ((uint8_t *)writer->data + writer->offset);
+  uint8_t *cursor = cNBT_GetCursor(writer);
   *cursor = data;
   writer->offset += 1;
 }
@@ -394,7 +421,7 @@ static void cNBT_WriteI16(
 ) {
   cNBT_Expand(writer, sizeof(int16_t));
 
-  uint8_t *cursor = ((uint8_t *)writer->data + writer->offset);
+  uint8_t *cursor = cNBT_GetCursor(writer);
   uint16_t d = (uint16_t)data;
   writer->offset += 2;
 
@@ -413,7 +440,7 @@ static void cNBT_WriteI32(
 ) {
   cNBT_Expand(writer, sizeof(int32_t));
 
-  uint8_t *cursor = ((uint8_t *)writer->data + writer->offset);
+  uint8_t *cursor = cNBT_GetCursor(writer);
   uint32_t d = (uint32_t)data;
   writer->offset += 4;
 
@@ -436,7 +463,7 @@ static void cNBT_WriteI64(
 ) {
   cNBT_Expand(writer, sizeof(int64_t));
 
-  uint8_t *cursor = ((uint8_t *)writer->data + writer->offset);
+  uint8_t *cursor = cNBT_GetCursor(writer);
   uint64_t d = (uint64_t)data;
   writer->offset += 8;
 
@@ -502,7 +529,7 @@ static void cNBT_WriteStr(
   if (string) {
     // We consider NULL strings as empty string.
     cNBT_Expand(writer, length);
-    memcpy(((uint8_t *)writer->data) + writer->offset, string, length);
+    memcpy(cNBT_GetCursor(writer), string, length);
     writer->offset += length;
   }
 }
@@ -528,7 +555,6 @@ static void cNBT_WriteObj(
   cNBT *item;
   cNBT_ForEach(nbt, item) {
     cNBT_WriteI08(writer, item->type);
-    printf("%s\n", item->key);
     cNBT_WriteStr(writer, item->key);
     cNBT_WriteX(writer, item);
   }
@@ -666,7 +692,7 @@ cNBT *cNBT_CreateNode(
     // Invalid type byte.
     return cNBT_NULLPTR;
 
-  cNBT *result = gMemAllocFn(sizeof(cNBT), gMemUserData);
+  cNBT *result = cNBT_Alloc(sizeof(cNBT));
   memset((void *)result, 0, sizeof(cNBT));
 
   result->type = type;
@@ -702,10 +728,11 @@ cNBT *cNBT_AddNode(
 
   // Free the existing key.
   if (item->key)
-    gMemFreeFn(item->key, gMemUserData);
+    cNBT_Free(item->key);
 
   // Copy the key.
   if (nbt->type != cNBT_LST)
+    // FIXME: Add length check for the key.
     item->key = cNBT_StrDup(key);
   else
     item->key = cNBT_NULLPTR;
@@ -730,69 +757,6 @@ cNBT *cNBT_AddNode(
 
       break;
     }
-  }
-
-  return nbt;
-}
-
-cNBT *cNBT_SetValue(
-  cNBT *nbt,
-  const void *data,
-  size_t length
-) {
-  if (!nbt || !data)
-    return cNBT_NULLPTR;
-
-  switch (nbt->type) {
-    // Basic types. The length will be ignored.
-    case cNBT_I08:
-      memcpy(&nbt->value.valueI08, data, sizeof(int8_t));
-      break;
-    case cNBT_I16:
-      memcpy(&nbt->value.valueI16, data, sizeof(int16_t));
-      break;
-    case cNBT_I32:
-      memcpy(&nbt->value.valueI32, data, sizeof(int32_t));
-      break;
-    case cNBT_I64:
-      memcpy(&nbt->value.valueI64, data, sizeof(int64_t));
-      break;
-    case cNBT_F32:
-      memcpy(&nbt->value.valueF32, data, sizeof(float));
-      break;
-    case cNBT_F64:
-      memcpy(&nbt->value.valueF64, data, sizeof(double));
-      break;
-
-    case cNBT_A08:
-      if (nbt->value.valueArray)
-        gMemFreeFn(nbt->value.valueArray, gMemUserData);
-      nbt->value.lengthArray = length;
-      if (length) {
-        nbt->value.valueArray = gMemAllocFn(length * sizeof(int8_t), gMemUserData);
-        memcpy(nbt->value.valueArray, data, length * sizeof(int8_t));
-      } else {
-        nbt->value.valueArray = cNBT_NULLPTR;
-      }
-      break;
-
-    case cNBT_STR:
-      if (nbt->value.valueString)
-        gMemFreeFn(nbt->value.valueString, gMemUserData);
-      if (!length)
-        length = strlen((const char *)data);
-      nbt->value.lengthString = length;
-      if (length) {
-        nbt->value.valueString = gMemAllocFn((length + 1) * sizeof(char), gMemUserData);
-        memcpy(nbt->value.valueString, data, length * sizeof(char));
-        nbt->value.valueString[length] = '\0';
-      } else {
-        nbt->value.valueString = cNBT_NULLPTR;
-      }
-      break;
-
-    default:
-      return cNBT_NULLPTR;
   }
 
   return nbt;
@@ -873,12 +837,71 @@ cNBT *cNBT_SetValueF64(
 cNBT *cNBT_SetValueString(
   cNBT *nbt,
   const char *string,
-  size_t length
+  uint16_t length
 ) {
+  size_t actualLength;
+
   if (!nbt || !string || nbt->type != cNBT_STR)
     return cNBT_NULLPTR;
 
-  return cNBT_SetValue(nbt, (const void *)string, length);
+  if (!length) {
+    actualLength = strlen(string);
+    if (actualLength > 65535)
+      // Does nothing when the string is too long.
+      return cNBT_NULLPTR;
+    // Get the string's actual length.
+    length = (uint16_t)actualLength;
+  }
+
+  if (nbt->value.valueString)
+    cNBT_Free(nbt->value.valueString);
+
+  nbt->value.valueString = cNBT_StrNDup(string, length, &actualLength);
+  nbt->value.lengthString = (uint16_t)actualLength;
+
+  return nbt;
+}
+
+cNBT *cNBT_SetValueArray(
+  cNBT *nbt,
+  const void *data,
+  int32_t length
+) {
+  size_t perElement = 0;
+
+  if (!nbt || !data || length < 0)
+    return cNBT_NULLPTR;
+
+  switch (nbt->type) {
+    case cNBT_A08:
+      perElement = sizeof(int8_t);
+      break;
+
+    case cNBT_A32:
+      perElement = sizeof(int32_t);
+      break;
+
+    case cNBT_A64:
+      perElement = sizeof(int64_t);
+      break;
+
+    default:
+      return cNBT_NULLPTR;
+  }
+
+  if (nbt->value.valueArray)
+    cNBT_Free(nbt->value.valueArray);
+
+  nbt->value.lengthArray = length;
+
+  if (length) {
+    nbt->value.valueArray = cNBT_Alloc(length * perElement);
+    memcpy(nbt->value.valueArray, data, length * perElement);
+  } else {
+    nbt->value.valueArray = cNBT_NULLPTR;
+  }
+
+  return nbt;
 }
 
 cNBT *cNBT_RemoveNode(
@@ -918,12 +941,6 @@ cNBT *cNBT_RemoveNode(
 // [SECTION] GENERAL OPERATIONS
 //-----------------------------------------------------------------------------
 
-void cNBT_Free(
-  const void *p
-) {
-  gMemFreeFn((void *)p, gMemUserData);
-}
-
 void cNBT_Delete(
   cNBT *nbt
 ) {
@@ -936,17 +953,17 @@ void cNBT_Delete(
       || item->type == cNBT_A32
       || item->type == cNBT_A64
     )
-      gMemFreeFn(item->value.valueArray, gMemUserData);
+      cNBT_Free(item->value.valueArray);
     if (item->type == cNBT_STR)
-      gMemFreeFn(item->value.valueString, gMemUserData);
+      cNBT_Free(item->value.valueString);
     if (item->key)
-      gMemFreeFn(item->key, gMemUserData);
+      cNBT_Free(item->key);
 
     if (child)
       // Free child nodes recursively.
       cNBT_Delete(child);
 
-    gMemFreeFn(item, gMemUserData);
+    cNBT_Free(item);
   }
 }
 
@@ -966,7 +983,7 @@ cNBT *cNBT_Parse(
     .errorFlag = 0
   };
 
-  cNBT *result = gMemAllocFn(sizeof(cNBT), gMemUserData);
+  cNBT *result = cNBT_Alloc(sizeof(cNBT));
   uint8_t type = cNBT_ParseI08(&reader);
 
   result->next = result->prev = cNBT_NULLPTR;
@@ -987,14 +1004,14 @@ const void *cNBT_Write(
   if (!nbt)
     return cNBT_NULLPTR;
   if (!initialCapacity)
-    initialCapacity = 0x10;
+    initialCapacity = 0x40;
 
   cNBTWriter w = {
     .bigEndian = bigEndian,
     .capacity = initialCapacity,
     .errorFlag = 0,
     .offset = 0,
-    .data = gMemAllocFn(initialCapacity, gMemUserData)
+    .data = cNBT_Alloc(initialCapacity)
   };
 
   cNBT_WriteI08(&w, nbt->type);
