@@ -1032,6 +1032,8 @@ cNBT *cNBT_Clear(
     nbt->listElementType = cNBT_END;
 
   cNBT_Delete(nbt->child);
+
+  return nbt;
 }
 
 //-----------------------------------------------------------------------------

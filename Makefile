@@ -1,7 +1,7 @@
 CC = gcc
 AR = ar
 
-CFLAGS = -O3 -std=c11 -g -Wall -Wformat -Wno-strict-aliasing -I./src
+CFLAGS = -O3 -std=c11 -g -Wall -Wformat -Wno-strict-aliasing -ffunction-sections -fdata-sections -I./src
 
 all: libcnbt.a
 
