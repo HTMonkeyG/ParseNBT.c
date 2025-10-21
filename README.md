@@ -16,8 +16,7 @@ int main() {
   cNBT *root = cNBT_CreateNode(cNBT_OBJ)
     , format_version = cNBT_CreateNode(cNBT_I32);
 
-  static const int a = 1;
-  cNBT_SetValue(format_version, &a, 0);
+  cNBT_SetValueI32(format_version, 1);
 
   cNBT_AddNode(root, format_version, "format_version");
 
