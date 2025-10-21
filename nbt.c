@@ -29,7 +29,7 @@ void *cNBT_Alloc(
 void cNBT_Free(
   const void *ptr
 ) {
-  gMemFreeFn(ptr, gMemUserData);
+  gMemFreeFn((void *)ptr, gMemUserData);
 }
 
 void cNBT_GetAllocators(
@@ -228,10 +228,14 @@ static uint8_t cNBT_ParseLst(
   cNBTReader *reader,
   cNBT **result
 ) {
-  cNBT *first = cNBT_Alloc(sizeof(cNBT))
-    , *item = first;
   uint8_t type = cNBT_ParseI08(reader);
   int32_t length = cNBT_ParseI32(reader);
+
+  if (!length)
+    return type;
+
+  cNBT *first = cNBT_Alloc(sizeof(cNBT))
+    , *item = first;
 
   memset((void *)item, 0, sizeof(cNBT));
   item->prev = item->next = cNBT_NULLPTR;
@@ -253,6 +257,7 @@ static uint8_t cNBT_ParseLst(
     }
   }
 
+  first->prev = item;
   *result = first;
 
   return type;
@@ -287,13 +292,14 @@ static cNBT *cNBT_ParseObj(
     }
   }
 
+  result->prev = item;
+
   return result;
 }
 
 // Read an array.
 #define cNBT_ParseArrTyped(reader, length, data, type, func) {\
   int32_t l = cNBT_ParseI32(reader);\
-  const uint8_t *cursor = cNBT_GetCursor(reader);\
   void *valueArr = cNBT_Alloc(l * sizeof(type));\
   for (int32_t i = 0; i < l; i++)\
     ((type *)valueArr)[i] = func(reader);\
@@ -526,7 +532,7 @@ static void cNBT_WriteStr(
     length = strlen(string);
   cNBT_WriteI16(writer, length);
 
-  if (string) {
+  if (string && length) {
     // We consider NULL strings as empty string.
     cNBT_Expand(writer, length);
     memcpy(cNBT_GetCursor(writer), string, length);
@@ -538,10 +544,25 @@ static void cNBT_WriteLst(
   cNBTWriter *writer,
   cNBT *nbt
 ) {
-  int32_t length;
+  int32_t length = 0;
+  cNBT *item;
 
-  if (!nbt) {
+  if (!nbt)
+    return;
 
+  cNBT_ForEach(nbt, item)
+    length++;
+  
+  if (length < 0)
+    return;
+
+  cNBT_WriteI08(writer, nbt->listElementType);
+  cNBT_WriteI32(writer, length);
+  //printf("%d\n", length);
+
+  cNBT_ForEach(nbt, item) {
+    //printf("%p %d\n", item, item->type);
+    cNBT_WriteX(writer, item);
   }
 }
 
@@ -556,6 +577,7 @@ static void cNBT_WriteObj(
   cNBT_ForEach(nbt, item) {
     cNBT_WriteI08(writer, item->type);
     cNBT_WriteStr(writer, item->key);
+    //printf("%p %s\n", item, item->key);
     cNBT_WriteX(writer, item);
   }
   cNBT_WriteI08(writer, cNBT_END);
@@ -572,25 +594,21 @@ static void cNBT_WriteX(
   cNBT *item
 ) {
   switch (item->type) {
+    // Basic types.
     case cNBT_I08:
-      cNBT_WriteI08(writer, item->value.valueI08);
-      return;
+      return cNBT_WriteI08(writer, item->value.valueI08);
     case cNBT_I16:
-      cNBT_WriteI16(writer, item->value.valueI16);
-      return;
+      return cNBT_WriteI16(writer, item->value.valueI16);
     case cNBT_I32:
-      cNBT_WriteI32(writer, item->value.valueI32);
-      return;
+      return cNBT_WriteI32(writer, item->value.valueI32);
     case cNBT_I64:
-      cNBT_WriteI64(writer, item->value.valueI64);
-      return;
+      return cNBT_WriteI64(writer, item->value.valueI64);
     case cNBT_F32:
-      cNBT_WriteF32(writer, item->value.valueF32);
-      return;
+      return cNBT_WriteF32(writer, item->value.valueF32);
     case cNBT_F64:
-      cNBT_WriteF64(writer, item->value.valueF64);
-      return;
+      return cNBT_WriteF64(writer, item->value.valueF64);
 
+    // Array of 8-bit integers.
     case cNBT_A08:
       cNBT_WriteArrTyped(
         writer,
@@ -600,14 +618,19 @@ static void cNBT_WriteX(
         cNBT_WriteI08);
       return;
 
+    // String.
     case cNBT_STR:
-      cNBT_WriteStr(writer, item->value.valueString);
-      return;
+      return cNBT_WriteStr(writer, item->value.valueString);
+    
+    // List.
+    case cNBT_LST:
+      return cNBT_WriteLst(writer, item);
 
+    // Object.
     case cNBT_OBJ:
-      cNBT_WriteObj(writer, item);
-      return;
+      return cNBT_WriteObj(writer, item);
 
+    // Array of 32-bit integers.
     case cNBT_A32:
       cNBT_WriteArrTyped(
         writer,
@@ -616,6 +639,7 @@ static void cNBT_WriteX(
         int32_t,
         cNBT_WriteI32);
       return;
+    // Array of 64-bit integers.
     case cNBT_A64:
       cNBT_WriteArrTyped(
         writer,
@@ -799,6 +823,27 @@ cNBT *cNBT_AddNode(
   return nbt;
 }
 
+cNBT *cNBT_SetListElementType(
+  cNBT *nbt,
+  uint8_t type
+) {
+  if (!nbt || nbt->type != cNBT_LST)
+    // Invalid NBT object.
+    return cNBT_NULLPTR;
+
+  if (!type || type > cNBT_A64)
+    // Invalid type byte.
+    return cNBT_NULLPTR;
+
+  if (nbt->listElementType && nbt->child)
+    // We can't override the type of a list with child nodes.
+    return cNBT_NULLPTR;
+
+  nbt->listElementType = type;
+
+  return nbt;
+}
+
 cNBT *cNBT_SetValueI08(
   cNBT *nbt,
   int8_t data
@@ -972,6 +1017,21 @@ cNBT *cNBT_RemoveNode(
   item->next = item->prev = cNBT_NULLPTR;
 
   return item;
+}
+
+cNBT *cNBT_Clear(
+  cNBT *nbt
+) {
+  if (!nbt)
+    return cNBT_NULLPTR;
+
+  if (nbt->type != cNBT_LST || nbt->type != cNBT_OBJ)
+    return cNBT_NULLPTR;
+
+  if (nbt->type == cNBT_LST)
+    nbt->listElementType = cNBT_END;
+
+  cNBT_Delete(nbt->child);
 }
 
 //-----------------------------------------------------------------------------

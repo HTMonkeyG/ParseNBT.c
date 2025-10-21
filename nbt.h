@@ -149,6 +149,11 @@ cNBT_ATTR cNBT *cNBT_API cNBT_CreateNode(
 cNBT_ATTR cNBT *cNBT_API cNBT_AddNode(
   cNBT *nbt, cNBT *item, const char *key);
 
+// Set the type of the elements in a list. The function fails when the type of
+// the given list has already been set.
+cNBT_ATTR cNBT *cNBT_API cNBT_SetListElementType(
+  cNBT *nbt, uint8_t type);
+
 // Set the value of a node. The node's type must match the function, or the
 // function fails.
 cNBT_ATTR cNBT *cNBT_API cNBT_SetValueI08(
@@ -188,14 +193,24 @@ cNBT_ATTR cNBT *cNBT_API cNBT_SetValueArray(
   const void *data,
   int32_t length);
 
+// Remove a node from an object.
+cNBT_ATTR cNBT *cNBT_API cNBT_RemoveNode(
+  cNBT *nbt, cNBT *item);
+
+// Remove all child nodes of an object.
+cNBT_ATTR cNBT *cNBT_API cNBT_Clear(
+  cNBT *nbt);
+
 //-----------------------------------------------------------------------------
 // [SECTION] GENERAL OPERATIONS
 //-----------------------------------------------------------------------------
 
+// Allocate memory with cNBT allocator function.
 cNBT_ATTR void *cNBT_API cNBT_Alloc(
   size_t size);
 
-// Free a created pointer by cNBT, like the return value of cNBT_Write().
+// Free a created pointer by cNBT, e.g. the return value of cNBT_Write().
+// If you want to free an NBT object, use cNBT_Delete() instead.
 cNBT_ATTR void cNBT_API cNBT_Free(
   const void *ptr);
 
