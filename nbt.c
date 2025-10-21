@@ -203,23 +203,6 @@ static double cNBT_ParseF64(
   return result;
 }
 
-// Read an array.
-// FIXME: Incorrect value endians.
-static int32_t cNBT_ParseArr(
-  cNBTReader *reader,
-  void **result,
-  size_t perElement
-) {
-  int32_t length = cNBT_ParseI32(reader);
-  const uint8_t *cursor = cNBT_GetCursor(reader);
-  void *valueArr = cNBT_Alloc(length * perElement);
-
-  memcpy(valueArr, (void *)cursor, length * perElement);
-  *result = valueArr;
-
-  return length;
-}
-
 // Read a string.
 static uint16_t cNBT_ParseStr(
   cNBTReader *reader,
@@ -306,6 +289,17 @@ static cNBT *cNBT_ParseObj(
   return result;
 }
 
+// Read an array.
+#define cNBT_ParseArrTyped(reader, length, data, type, func) {\
+  int32_t l = cNBT_ParseI32(reader);\
+  const uint8_t *cursor = cNBT_GetCursor(reader);\
+  void *valueArr = cNBT_Alloc(l * sizeof(type));\
+  for (int32_t i = 0; i < l; i++)\
+    ((type *)valueArr)[i] = func(reader);\
+  *(length) = l;\
+  *(data) = valueArr;\
+}
+
 // Parse an item of the specified type.
 static void cNBT_ParseX(
   cNBTReader *reader,
@@ -340,7 +334,12 @@ static void cNBT_ParseX(
 
     // Array of 8-bit integers.
     case cNBT_A08:
-      item->value.lengthArray = cNBT_ParseArr(reader, &item->value.valueArray, sizeof(int8_t));
+      cNBT_ParseArrTyped(
+        reader,
+        &item->value.lengthArray,
+        &item->value.valueArray,
+        int8_t,
+        cNBT_ParseI08);
       break;
 
     // String.
@@ -360,12 +359,22 @@ static void cNBT_ParseX(
 
     // Array of 32-bit integers.
     case cNBT_A32:
-      item->value.lengthArray = cNBT_ParseArr(reader, &item->value.valueArray, sizeof(int32_t));
+      cNBT_ParseArrTyped(
+        reader,
+        &item->value.lengthArray,
+        &item->value.valueArray,
+        int32_t,
+        cNBT_ParseI32);
       break;
 
     // Array of 64-bit integers.
     case cNBT_A64:
-      item->value.lengthArray = cNBT_ParseArr(reader, &item->value.valueArray, sizeof(int64_t));
+      cNBT_ParseArrTyped(
+        reader,
+        &item->value.lengthArray,
+        &item->value.valueArray,
+        int64_t,
+        cNBT_ParseI64);
       break;
   }
 }
@@ -506,16 +515,6 @@ static void cNBT_WriteF64(
   cNBT_WriteI64(writer, tmp);
 }
 
-static void cNBT_WriteArr(
-  cNBTWriter *writer,
-  int32_t length,
-  const int8_t *data
-) {
-  cNBT_WriteI32(writer, length);
-  for (int32_t i = 0; i < length; i++)
-    cNBT_WriteI08(writer, data[i]);
-}
-
 static void cNBT_WriteStr(
   cNBTWriter *writer,
   const char *string
@@ -561,6 +560,12 @@ static void cNBT_WriteObj(
   cNBT_WriteI08(writer, cNBT_END);
 }
 
+#define cNBT_WriteArrTyped(writer, length, data, type, func) {\
+  cNBT_WriteI32(writer, length);\
+  for (int32_t i = 0; i < length; i++)\
+    func(writer, ((type *)data)[i]);\
+}
+
 static void cNBT_WriteX(
   cNBTWriter *writer,
   cNBT *item
@@ -585,9 +590,40 @@ static void cNBT_WriteX(
       cNBT_WriteF64(writer, item->value.valueF64);
       return;
 
+    case cNBT_A08:
+      cNBT_WriteArrTyped(
+        writer,
+        item->value.lengthArray,
+        item->value.valueArray,
+        int8_t,
+        cNBT_WriteI08);
+      return;
+
+    case cNBT_STR:
+      cNBT_WriteStr(writer, item->value.valueString);
+      return;
+
     case cNBT_OBJ:
       cNBT_WriteObj(writer, item);
       return;
+
+    case cNBT_A32:
+      cNBT_WriteArrTyped(
+        writer,
+        item->value.lengthArray,
+        item->value.valueArray,
+        int32_t,
+        cNBT_WriteI32);
+      return;
+    case cNBT_A64:
+      cNBT_WriteArrTyped(
+        writer,
+        item->value.lengthArray,
+        item->value.valueArray,
+        int64_t,
+        cNBT_WriteI64);
+      return;
+
     default:
       return;
   }
