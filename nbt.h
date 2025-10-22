@@ -132,13 +132,17 @@ cNBT_ATTR void cNBT_API cNBT_SetAllocators(
 cNBT_ATTR uint8_t cNBT_API cNBT_IsType(
   const cNBT *const nbt, uint8_t type);
 
-// Find items with matching the given key name.
+// Find item matching the given key name.
 cNBT_ATTR cNBT *cNBT_API cNBT_GetNodeByKey(
   const cNBT *const nbt, const char *key);
 
-// Find items with matching the given key name and the given type.
-cNBT_ATTR cNBT *cNBT_API cNBT_GetNodeByKeyType(
+// Find item matching the given key name and the given type.
+cNBT_ATTR cNBT *cNBT_API cNBT_GetNodeByKeyTyped(
   const cNBT *const nbt, const char *key, uint8_t type);
+
+// Find item in an "array" with given "index".
+cNBT_ATTR cNBT *cNBT_API cNBT_GetNodeByIndex(
+  const cNBT *const nbt, int32_t index);
 
 // Get the type of an item.
 cNBT_ATTR uint8_t cNBT_API cNBT_GetNodeType(

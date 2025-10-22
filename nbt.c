@@ -692,7 +692,7 @@ cNBT *cNBT_GetNodeByKey(
   return cNBT_NULLPTR;
 }
 
-cNBT *cNBT_GetNodeByKeyType(
+cNBT *cNBT_GetNodeByKeyTyped(
   const cNBT *const nbt,
   const char *key,
   uint8_t type
@@ -707,6 +707,28 @@ cNBT *cNBT_GetNodeByKeyType(
   }
 
   return cNBT_NULLPTR;
+}
+
+cNBT *cNBT_GetNodeByIndex(
+  const cNBT *const nbt,
+  int32_t index
+) {
+  cNBT *result;
+
+  if (!nbt || index < 0)
+    return cNBT_NULLPTR;
+
+  if (nbt->type != cNBT_OBJ || nbt->type != cNBT_LST)
+    return cNBT_NULLPTR;
+
+  result = nbt->child;
+
+  while (index && result) {
+    result = result->next;
+    index--;
+  }
+
+  return result;
 }
 
 uint8_t cNBT_GetNodeType(
