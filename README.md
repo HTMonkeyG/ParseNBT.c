@@ -6,6 +6,8 @@ Download `nbt.c` and `nbt.h` in the repository, and put the files in your projec
 
 Call `cNBT_Parse()` to read binary NBT data into `cNBT` objects, and call `cNBT_Write()` to serialize `cNBT` objects to binary data. Don't forget to free the memory and objects with `cNBT_Free()` and `cNBT_Delete()`.
 
+Makefile in the repository is only for windows. You may write your own Makefile on other platforms.
+
 ## Example
 
 ```c

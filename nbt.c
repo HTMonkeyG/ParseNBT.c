@@ -875,7 +875,7 @@ cNBT *cNBT_SetValueI32(
   if (!nbt || nbt->type != cNBT_I32)
     return cNBT_NULLPTR;
 
-  nbt->value.valueI08 = data;
+  nbt->value.valueI32 = data;
 
   return nbt;
 }
@@ -887,7 +887,7 @@ cNBT *cNBT_SetValueI64(
   if (!nbt || nbt->type != cNBT_I64)
     return cNBT_NULLPTR;
 
-  nbt->value.valueI08 = data;
+  nbt->value.valueI64 = data;
 
   return nbt;
 }
