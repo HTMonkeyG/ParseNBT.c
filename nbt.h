@@ -8,12 +8,29 @@
 extern "C" {
 #endif
 
+#if defined(WIN32) || defined(WIN64) || defined(_MSC_VER) || defined(_WIN32)
+// Windows.
+
+// You can override cNBT_API and cNBT_ATTR in nbtconfig.h.
 #ifndef cNBT_API
 #define cNBT_API __stdcall
 #endif
 
 #ifndef cNBT_ATTR
 #define cNBT_ATTR
+#endif
+
+#else
+// Non-windows.
+
+#ifndef cNBT_API
+#define cNBT_API
+#endif
+
+#ifndef cNBT_ATTR
+#define cNBT_ATTR
+#endif
+
 #endif
 
 #define cNBT_END 0x00
@@ -89,9 +106,9 @@ typedef struct cNBT_t {
 // [SECTION] MEMORY MANAGEMENT
 //-----------------------------------------------------------------------------
 
-typedef void *(__stdcall *cNBTMemAllocFn)(
+typedef void *(cNBT_API *cNBTMemAllocFn)(
   size_t, void *);
-typedef void (__stdcall *cNBTMemFreeFn)(
+typedef void (cNBT_API *cNBTMemFreeFn)(
   void *, void *);
 
 // Get current memory allocator functions.
